@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Subroutine Hierarchy</title>
+
+<script>
+
+    var canvas;        
+    var graphics;     
+    var frameNumber=0; 
+
+    var X_LEFT   = -5; 
+    var X_RIGHT  =  5;
+    var Y_BOTTOM = -3;
+    var Y_TOP    =  3;
+
+    var BACKGROUND = "white"; 
+    var pixelSize;             
+
+    function drawWorld() {
+        graphics.save();
+        graphics.translate(-3, 2);  
+        drawSeesaw(frameNumber, "purple");
+        graphics.restore();
+
+       
+        graphics.save();
+        graphics.translate(3, 2);     
+        drawSeesaw(-frameNumber*1.2, "green");
+        graphics.restore();
+
+        graphics.save();
+        graphics.translate(0, 0);     
+        drawSeesaw(frameNumber*1.5, "blue");
+        graphics.restore();
+    }
+
+
+    function drawSeesaw(f, supportColor) {
+        graphics.save();
+        graphics.fillStyle = supportColor;
+        graphics.scale(1, 1.6); 
+        filledTriangleApexAt0();
+        graphics.restore();
+
+        graphics.save();
+        graphics.fillStyle = "red";
+        graphics.scale(3, 0.2);
+        filledRect();  
+        graphics.restore();
+
+        graphics.save();
+        graphics.translate(-1.5, 0);  
+        graphics.rotate(f * 0.1);     
+        graphics.fillStyle = "black";
+        filledPolygon(9);            
+        graphics.restore();
+
+      
+        graphics.save();
+        graphics.translate(1.5, 0);   
+        graphics.rotate(f * 0.1);
+        graphics.fillStyle = "black";
+        filledPolygon(9);
+        graphics.restore();
+    }
+
+    function filledRect() {
+        graphics.fillRect(-0.5, -0.5, 1, 1);
+    }
+
+    function filledPolygon(n) {
+        graphics.beginPath();
+        for (var i = 0; i < n; i++) {
+            var angle = 2 * Math.PI * i / n;
+            var x = 0.5 * Math.cos(angle);
+            var y = 0.5 * Math.sin(angle);
+            if (i === 0) {
+                graphics.moveTo(x, y);
+            } else {
+                graphics.lineTo(x, y);
+            }
+        }
+        graphics.closePath();
+        graphics.fill();
+    }
+
+    function filledTriangleApexAt0() {
+        graphics.beginPath();
+        graphics.moveTo(0,0);
+        graphics.lineTo(-0.5, -1);
+        graphics.lineTo(0.5, -1);
+        graphics.closePath();
+        graphics.fill();
+    }
+
+    function updateFrame() {
+        frameNumber++;
+    }
+
+    function draw() {
+        graphics.save();
+        graphics.fillStyle = BACKGROUND;
+        graphics.fillRect(0,0,canvas.width,canvas.height);
+        graphics.fillStyle = "black";
+        applyLimits(graphics, X_LEFT, X_RIGHT, Y_TOP, Y_BOTTOM, false);
+        graphics.lineWidth = pixelSize;
+        drawWorld();
+        graphics.restore();
+    }
+
+    function applyLimits(g, xleft, xright, ytop, ybottom, preserveAspect) {
+        var width = canvas.width;
+        var height = canvas.height;
+        if (preserveAspect) {
+            var displayAspect = Math.abs(height / width);
+            var requestedAspect = Math.abs(( ybottom-ytop ) / ( xright-xleft ));
+            var excess;
+            if (displayAspect > requestedAspect) {
+                excess = (ybottom-ytop) * (displayAspect/requestedAspect - 1);
+                ybottom += excess/2;
+                ytop -= excess/2;
+            }
+            else if (displayAspect < requestedAspect) {
+                excess = (xright-xleft) * (requestedAspect/displayAspect - 1);
+                xright += excess/2;
+                xleft -= excess/2;
+            }
+        }
+        var pixelWidth = Math.abs(( xright - xleft ) / width);
+        var pixelHeight = Math.abs(( ybottom - ytop ) / height);
+        pixelSize = Math.min(pixelWidth,pixelHeight);
+        g.scale( width / (xright-xleft), height / (ybottom-ytop) );
+        g.translate( -xleft, -ytop );
+    }
+
+    var running = false;
+
+    function frame() {
+        if (running) {
+            updateFrame();
+            draw();
+            requestAnimationFrame(frame);
+        }
+    }
+
+    function doAnimationCheckbox() {
+        var shouldRun = document.getElementById("animateCheck").checked;
+        if (shouldRun != running) {
+            running = shouldRun;
+            if (running)
+                requestAnimationFrame(frame);
+        }
+    }
+
+    function init() {
+        canvas = document.getElementById("thecanvas");
+        if (!canvas.getContext) {
+            document.getElementById("message").innerHTML = "ERROR: Canvas not supported";
+            return;
+        }
+        graphics = canvas.getContext("2d");
+        document.getElementById("animateCheck").checked = false;
+        document.getElementById("animateCheck").onchange = doAnimationCheckbox;
+        draw();
+    }
+
+</script>
+</head>
+
+<body onload="init()" style="background-color:#EEEEEE">
+<h3>Subroutine Hierarchy</h3>
+<noscript>
+   <p><b style="color:red">Error: This page requires JavaScript, but it is not available.</b></p>
+</noscript>
+
+<p id="message">
+  <label><input type="checkbox" id="animateCheck"><b>Run the Animation</b></label>
+</p>
+
+<div style="float:left; border: 2px solid black">
+  <canvas id="thecanvas" width="800" height="600" style="display:block"></canvas>
+</div>
+</body>
+</html>
