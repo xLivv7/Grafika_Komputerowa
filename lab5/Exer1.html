@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Obiekty WebGL – Spiralny korkociąg i piramida</title>
+  <style>
+    canvas { border: 1px solid black; }
+  </style>
+</head>
+<body onload="init();">
+  <canvas id="canvas" width="800" height="600"></canvas>
+  
+  <!-- Wykorzystujemy bibliotekę glMatrix do operacji macierzowych -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"></script>
+  <script>
+    // Globalne zmienne
+    var gl, canvas;
+    var shaderProgram;
+    var objectNumber = 1; // 1: spiral, 2: piramida
+    var rotX = 0, rotY = 0, rotZ = 0;
+    var numTurns = 5;  // liczba obrotów dla spirali
+
+    // Inicjalizacja WebGL
+    function init() {
+      canvas = document.getElementById("canvas");
+      gl = canvas.getContext("webgl");
+      if (!gl) {
+        alert("WebGL nie jest obsługiwany przez Twoją przeglądarkę.");
+        return;
+      }
+      initShaders();
+
+      gl.clearColor(0.9, 0.9, 0.9, 1.0);
+      gl.enable(gl.DEPTH_TEST);
+
+      window.addEventListener("keydown", handleKeyDown, false);
+
+      requestAnimationFrame(display);
+    }
+
+    // Inicjalizacja shaderów
+    function initShaders() {
+      var vsSource = `
+        attribute vec3 aVertexPosition;
+        uniform mat4 uModelViewMatrix;
+        uniform mat4 uProjectionMatrix;
+        void main(void) {
+          gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aVertexPosition, 1.0);
+        }
+      `;
+      var fsSource = `
+        precision mediump float;
+        uniform vec4 uColor;
+        void main(void) {
+          gl_FragColor = uColor;
+        }
+      `;
+
+      var vertexShader = loadShader(gl.VERTEX_SHADER, vsSource);
+      var fragmentShader = loadShader(gl.FRAGMENT_SHADER, fsSource);
+
+      shaderProgram = gl.createProgram();
+      gl.attachShader(shaderProgram, vertexShader);
+      gl.attachShader(shaderProgram, fragmentShader);
+      gl.linkProgram(shaderProgram);
+
+      if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+        alert("Nie można zainicjować shaderów.");
+        return;
+      }
+      gl.useProgram(shaderProgram);
+
+      shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+      gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+
+      shaderProgram.uModelViewMatrix = gl.getUniformLocation(shaderProgram, "uModelViewMatrix");
+      shaderProgram.uProjectionMatrix = gl.getUniformLocation(shaderProgram, "uProjectionMatrix");
+      shaderProgram.uColor = gl.getUniformLocation(shaderProgram, "uColor");
+    }
+
+    // Ładowanie shadera
+    function loadShader(type, source) {
+      var shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        alert("Błąd kompilacji shadera: " + gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+      }
+      return shader;
+    }
+
+    // Obsługa zdarzeń klawiaturowych
+    function handleKeyDown(event) {
+      switch(event.key) {
+        case "1":
+          objectNumber = 1;
+          break;
+        case "2":
+          objectNumber = 2;
+          break;
+        case "ArrowUp":
+          rotX -= 5;
+          break;
+        case "ArrowDown":
+          rotX += 5;
+          break;
+        case "ArrowLeft":
+          rotY -= 5;
+          break;
+        case "ArrowRight":
+          rotY += 5;
+          break;
+        case "PageUp":
+          rotZ += 5;
+          break;
+        case "PageDown":
+          rotZ -= 5;
+          break;
+        case "Home":
+          rotX = rotY = rotZ = 0;
+          break;
+      }
+    }
+
+    // Główna funkcja rysująca scenę
+    function display() {
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+      // Ustawienie macierzy projekcji
+      var fieldOfView = 45 * Math.PI / 180;
+      var aspect = canvas.width / canvas.height;
+      var zNear = 0.1, zFar = 100.0;
+      var projectionMatrix = mat4.create();
+      mat4.perspective(projectionMatrix, fieldOfView, aspect, zNear, zFar);
+
+      // Ustawienie macierzy model-view
+      var modelViewMatrix = mat4.create();
+      // Przesunięcie sceny w głąb
+      mat4.translate(modelViewMatrix, modelViewMatrix, [0, 0, -6]);
+      // Obrót globalny
+      mat4.rotateX(modelViewMatrix, modelViewMatrix, glMatrix.toRadian(rotX));
+      mat4.rotateY(modelViewMatrix, modelViewMatrix, glMatrix.toRadian(rotY));
+      mat4.rotateZ(modelViewMatrix, modelViewMatrix, glMatrix.toRadian(rotZ));
+
+      gl.uniformMatrix4fv(shaderProgram.uProjectionMatrix, false, projectionMatrix);
+      gl.uniformMatrix4fv(shaderProgram.uModelViewMatrix, false, modelViewMatrix);
+
+      if (objectNumber === 1) {
+        drawSpiral();
+      } else {
+        drawPyramid();
+      }
+
+      requestAnimationFrame(display);
+    }
+
+    // Rysowanie obiektu 1: Spiralny korkociąg
+    function drawSpiral() {
+      // Ustawienie koloru – przykładowo zielony
+      gl.uniform4f(shaderProgram.uColor, 0.0, 1.0, 0.0, 1.0);
+
+      var vertices = [];
+      var totalAngle = numTurns * 2 * Math.PI;
+      var step = 0.1;
+      var a = 0.05;        // współczynnik zwiększania promienia
+      var heightFactor = 0.05; // współczynnik zwiększania wysokości
+
+      for (var t = 0; t <= totalAngle; t += step) {
+        var r = a * t;
+        var x = r * Math.cos(t);
+        var y = r * Math.sin(t);
+        var z = heightFactor * t;
+        vertices.push(x, y, z);
+      }
+
+      var spiralBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, spiralBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+      gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.LINE_STRIP, 0, vertices.length / 3);
+      gl.deleteBuffer(spiralBuffer);
+    }
+
+    // Podprogram rysujący pojedynczy trójkąt (użyty przy modelowaniu hierarchicznym piramidy)
+    function drawTriangle(triangleVertices, currentMatrix) {
+      // (Tutaj currentMatrix można by modyfikować – dla uproszczenia przekazujemy już przeliczony modelView)
+      var triangleBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, triangleBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangleVertices), gl.STATIC_DRAW);
+      gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.deleteBuffer(triangleBuffer);
+    }
+
+    // Rysowanie obiektu 2: Piramida
+    function drawPyramid() {
+      // Ustawienie koloru – przykładowo niebieski
+      gl.uniform4f(shaderProgram.uColor, 0.0, 0.0, 1.0, 1.0);
+
+      var N = 5;         // liczba wierzchołków podstawy
+      var baseRadius = 1.0;
+      var height = 1.5;
+
+      // Rysowanie podstawy piramidy jako wachlarza trójkątów
+      var baseVertices = [];
+      // Środek podstawy
+      baseVertices.push(0.0, 0.0, 0.0);
+      for (var i = 0; i <= N; i++) {
+        var angle = i * 2 * Math.PI / N;
+        var x = baseRadius * Math.cos(angle);
+        var y = baseRadius * Math.sin(angle);
+        baseVertices.push(x, y, 0.0);
+      }
+      var baseBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, baseBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(baseVertices), gl.STATIC_DRAW);
+      gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.TRIANGLE_FAN, 0, baseVertices.length / 3);
+      gl.deleteBuffer(baseBuffer);
+
+      // Rysowanie ścian bocznych piramidy przy użyciu hierarchicznego modelowania.
+      // Każda ściana – pojedynczy trójkąt o wierzchołkach: [apex, punkt podstawy i, punkt podstawy i+1]
+      var apex = [0.0, 0.0, height];
+      for (var i = 0; i < N; i++) {
+        var angle1 = i * 2 * Math.PI / N;
+        var angle2 = (i + 1) * 2 * Math.PI / N;
+        var baseVertex1 = [baseRadius * Math.cos(angle1), baseRadius * Math.sin(angle1), 0.0];
+        var baseVertex2 = [baseRadius * Math.cos(angle2), baseRadius * Math.sin(angle2), 0.0];
+        var triangleVertices = [].concat(apex, baseVertex1, baseVertex2);
+        drawTriangle(triangleVertices, mat4.create());
+      }
+    }
+
+    // Uruchomienie inicjalizacji
+    init();
+  </script>
+</body>
+</html>
