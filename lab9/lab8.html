@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<head>
+   <meta charset="UTF-8">
+   <title>CS 424 Lab 9</title>
+ 
+   <script src="three.js-master/build/three.js"></script>
+<script src="resources/OrbitControls.js"></script>
+<script src="resources/horse.js"></script>
+<script src="three.js-master/examples/jsm/loaders/OBJLoader.js"></script>
+<script src="three.js-master/examples/jsm/loaders/MTLLoader.js"></script>
+<script src="three.js-master/examples/js/loaders/deprecated/LegacyJSONLoader.js"></script>
+<script src="three.js-master/examples/jsm/loaders/GLTFLoader.js"></script>
+<script src="three.js-master/examples/js/loaders/DRACOLoader.js"></script>
+
+   <script>
+ 
+      "use strict";
+      var pivots = [];
+      var merryGoRound;
+      var horses = []; 
+
+      var canvas, renderer, scene, camera; 
+	  var kon1,kon2,kon3,kon4,kon5,kon6;
+      var slup1,slup2,slup3,slup4,slup5,slup6;
+      var dach1,dach2;
+      var controls;  
+                  
+      var animating = false;  
+      var frameNumber = 0;  
+      var tempObject;
+      function render() {
+         renderer.render(scene, camera);
+      }
+ 
+     
+       function createWorld() {
+   renderer.setClearColor("gray");
+   scene = new THREE.Scene();
+   merryGoRound = new THREE.Group();
+   scene.add(merryGoRound);
+   camera = new THREE.PerspectiveCamera(30, canvas.width / canvas.height, 0.1, 100);
+   camera.position.z = 50;
+
+   var light = new THREE.DirectionalLight();
+   light.position.set(0, 0, 1);
+   camera.add(light);
+   scene.add(camera);
+
+   var textureGround = new THREE.TextureLoader().load("paisley.jpg");
+
+// Tworzenie 10-kąta jako Shape
+const shape = new THREE.Shape();
+const radiusp = 13;
+const sides = 10;
+
+for (let i = 0; i <= sides; i++) {
+    const angle = (i / sides) * Math.PI * 2;
+    const x = Math.cos(angle) * radiusp;
+    const y = Math.sin(angle) * radiusp;
+
+    if (i === 0) {
+        shape.moveTo(x, y);
+    } else {
+        shape.lineTo(x, y);
+    }
+}
+
+// Ekstruzja płaskiego 10-kąta w cienką bryłę
+const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: 0.4,         // grubość "podłogi"
+    bevelEnabled: false
+});
+
+const material = new THREE.MeshBasicMaterial({
+    color: "white",
+    map: textureGround
+});
+
+tempObject = new THREE.Mesh(geometry, material);
+tempObject.rotation.x = -Math.PI / 2;  // Pozycjonowanie poziomo
+
+   merryGoRound.add(tempObject);
+
+
+   var texture = new THREE.TextureLoader().load("earth.jpg");
+   var sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(3.7, 32, 32),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, map: texture })
+   );
+   sphere.position.y = 4;
+   merryGoRound.add(sphere);
+
+
+   const count = 13;
+const radius = 10;
+const angleStep = (2 * Math.PI) / count;
+const loader = new THREE.LegacyJSONLoader();
+const colors = [0x006400, 0xffffff, 0x964B00];
+
+for (let i = 0; i < count; i++) {
+   let angle = i * angleStep;
+   let x = Math.cos(angle) * radius;
+   let z = Math.sin(angle) * radius;
+
+   let pivot = new THREE.Group();
+   pivot.position.set(x, 0, z);
+
+  
+   let slup = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.3, 0.3, 8, 30, 1),
+      new THREE.MeshPhongMaterial({
+         color: 0x654321,
+         specular: 0x222222,
+         shininess: 12,
+         flatShading: true
+      })
+   );
+   slup.position.y = 4;
+   pivot.add(slup);
+
+   
+   merryGoRound.add(pivot);
+ 
+
+   pivots.push(pivot); 
+
+ 
+   loader.load('resources/horse.js', function (geometry) {
+    let horseGroup = new THREE.Group(); 
+
+    let kon = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({
+        color: colors[i % colors.length],
+        specular: 0x222222,
+        shininess: 12,
+        flatShading: true
+    }));
+    kon.scale.set(0.03, 0.03, 0.03);
+    kon.rotation.y = Math.PI / 2; 
+    horseGroup.add(kon);
+    horses.push(kon);
+
+    horseGroup.rotation.y = -angle; 
+    pivot.add(horseGroup);
+   });
+}
+
+
+   dach1 = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.1, 12, 3, 30, 1),
+      new THREE.MeshPhongMaterial({
+         color: 0x00004c,
+         specular: 0x222222,
+         shininess: 12,
+         flatShading: true
+      })
+   );
+   dach1.position.y = 9.6;
+
+   dach2 = new THREE.Mesh(
+      new THREE.CylinderGeometry(12, 12, 0.3, 200, 1),
+      new THREE.MeshPhongMaterial({
+         color: 0x00004c,
+         specular: 0x222222,
+         shininess: 12,
+         flatShading: true
+      })
+   );
+   dach2.position.y = 8;
+
+   merryGoRound.add(dach1);
+merryGoRound.add(dach2);
+
+}
+
+ 
+    
+      function updateForFrame() {
+         merryGoRound.rotation.y += 0.01;
+
+         //horses.forEach(horse => {
+        //horse.rotation.y += 0.008; });
+
+};
+
+tempObject.rotation.y += 0.01;
+dach1.rotation.y += 0.01;
+
+ 
+      
+ 
+ 
+      /* ---------------------------- MOUSE AND ANIMATION SUPPORT ------------------
+ 
+      /**
+       *  This page uses THREE.OrbitControls to let the user use the mouse to rotate
+       *  the view.  OrbitControls are designed to be used during an animation, where
+       *  the rotation is updated as part of preparing for the next frame.  The scene
+       *  is not automatically updated just because the user drags the mouse.  To get
+       *  the rotation to work without animation, I add another mouse listener to the
+       *  canvas, just to call the render() function when the user drags the mouse.
+       *  The same thing holds for touch events -- I call render for any mouse move
+       *  event with one touch.
+       */
+      function installOrbitControls() {
+         controls = new THREE.OrbitControls(camera,canvas);
+         controls.noPan = true;
+         controls.noZoom = true;
+         controls.staticMoving = true;
+         function move() {
+            controls.update();
+            if (! animating) {
+               render();
+            }
+         }
+         function down() {
+            document.addEventListener("mousemove", move, false);
+         }
+         function up() {
+            document.removeEventListener("mousemove", move, false);
+         }
+         function touch(event) {
+            if (event.touches.length == 1) {
+               move();
+            }
+         }
+         canvas.addEventListener("mousedown", down, false);
+         canvas.addEventListener("touchmove", touch, false);
+      }
+ 
+    
+      function doAnimateCheckbox() {
+         var run = document.getElementById("animateCheckbox").checked;
+         if (run != animating) {
+            animating = run;
+            if (animating) {
+               requestAnimationFrame(doFrame);
+            }
+         }
+      }
+ 
+
+      function doFrame() {
+         if (animating) {
+            frameNumber++;
+            updateForFrame();
+            render();
+            requestAnimationFrame(doFrame);
+         }
+      }
+ 
+      /*----------------------------- INITIALIZATION ----------------------------------------
+ 
+      /**
+       *  This function is called by the onload event so it will run after the
+       *  page has loaded.  It creates the renderer, canvas, and scene objects,
+       *  calls createWorld() to add objects to the scene, and renders the
+       *  initial view of the scene.  If an error occurs, it is reported.
+       */
+      function init() {
+         try {
+            canvas = document.getElementById("glcanvas");
+            renderer = new THREE.WebGLRenderer({
+               canvas: canvas,
+               antialias: true,
+               alpha: false
+            });
+         }
+         catch (e) {
+            document.getElementById("message").innerHTML="<b>Sorry, an error occurred:<br>" +
+                    e + "</b>";
+            return;
+         }
+         document.getElementById("animateCheckbox").checked = false;
+         document.getElementById("animateCheckbox").onchange = doAnimateCheckbox;
+         createWorld();
+         installOrbitControls();
+         render();
+      }
+ 
+   </script>
+</head>
+<body onload="init()">
+ 
+<h2>Three.js Modeling Demo: Merry-Go-Round</h2>
+ 
+<noscript>
+   <p style="color: #AA0000; font-weight: bold">Sorry, but this page requires JavaScript!</p>
+</noscript>
+ 
+<p style="color:#AA0000; font-weight: bold" id="message">
+</p>
+ 
+<p>
+   <label><input type="checkbox" id="animateCheckbox"><b>Animate</b></label>
+   <b style="margin-left:50px">Use the mouse to rotate the model.</b>
+</p>
+ 
+<div id="canvas-holder" style="float:left; border: thin solid black; background-color: white">
+   <canvas width=1200 height=600 id="glcanvas"></canvas>
+</div>
+ 
+</body>
+</html>
